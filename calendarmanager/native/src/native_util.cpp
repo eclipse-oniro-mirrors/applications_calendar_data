@@ -108,7 +108,12 @@ DataShare::DataShareValuesBucket BuildValueEvent(const Event &event, int calenda
     LOG_DEBUG("description %{public}s", event.description.value_or("").c_str());
 
     valuesBucket.Put("description", event.description.value_or(""));
-    valuesBucket.Put("eventTimezone", "Asia/Shanghai");
+    if (event.timeZone) {
+        valuesBucket.Put("eventTimezone", event.timeZone.value());
+    }
+    if (event.isAllDay) {
+        valuesBucket.Put("allDay", event.isAllDay.value() ? 1 : 0);
+    }
     valuesBucket.Put("allDay", event.isAllDay ? (event.isAllDay.value() ? 1 : 0) : 0);
     return valuesBucket;
 }
@@ -218,7 +223,7 @@ std::optional<Location> ResultSetToLocation(DataShareResultSetPtr &resultSet)
     string value;
     auto ret = GetValue(resultSet, "eventLocation", value);
     out.location = std::make_optional<string>(value);
-    ret |= GetValue(resultSet, "location_longitude", value);
+    ret = GetValue(resultSet, "location_longitude", value);
     int longitudeValue = -1;
     std::stringstream str2digit;
     str2digit << value;
@@ -226,7 +231,7 @@ std::optional<Location> ResultSetToLocation(DataShareResultSetPtr &resultSet)
     if (longitudeValue != -1) {
         out.longitude = std::make_optional<int>(longitudeValue);
     }
-    ret |= GetValue(resultSet, "location_latitude", value);
+    ret = GetValue(resultSet, "location_latitude", value);
     int latitudeValue = -1;
     str2digit.clear();
     str2digit << value;
@@ -262,6 +267,24 @@ std::optional<EventService> ResultSetToEventService(DataShareResultSetPtr &resul
     return std::make_optional<EventService>(out);
 }
 
+void ResultSetToEvent(Event &event, DataShareResultSetPtr &resultSet)
+{
+    GetValueOptional(resultSet, "_id", event.id);
+    int type = 0;
+    GetValue(resultSet, "event_calendar_type", type);
+    event.type = static_cast<EventType>(type);
+    GetValueOptional(resultSet, "title", event.title);
+    GetValue(resultSet, "dtstart", event.startTime);
+    GetValue(resultSet, "dtend", event.endTime);
+    int isAllDay = 0;
+    GetValue(resultSet, "allDay", isAllDay);
+    event.isAllDay = static_cast<bool>(isAllDay);
+    GetValueOptional(resultSet, "description", event.description);
+    GetValueOptional(resultSet, "eventTimezone", event.timeZone);
+    event.location = ResultSetToLocation(resultSet);
+    event.service = ResultSetToEventService(resultSet);
+}
+
 int ResultSetToEvents(std::vector<Event> &events, DataShareResultSetPtr &resultSet,
     const std::vector<std::string>& columns)
 {
@@ -278,17 +301,7 @@ int ResultSetToEvents(std::vector<Event> &events, DataShareResultSetPtr &resultS
     }
     do {
         Event event;
-        GetValueOptional(resultSet, "_id", event.id);
-        int type = 0;
-        GetValue(resultSet, "event_calendar_type", type);
-        event.type = static_cast<EventType>(type);
-        GetValueOptional(resultSet, "title", event.title);
-        GetValue(resultSet, "dtstart", event.startTime);
-        GetValue(resultSet, "dtend", event.endTime);
-        GetValueOptional(resultSet, "description", event.description);
-        GetValueOptional(resultSet, "eventTimezone", event.timeZone);
-        event.location = ResultSetToLocation(resultSet);
-        event.service = ResultSetToEventService(resultSet);
+        ResultSetToEvent(event, resultSet);
         events.emplace_back(event);
     } while (resultSet->GoToNextRow() == DataShare::E_OK);
     return 0;

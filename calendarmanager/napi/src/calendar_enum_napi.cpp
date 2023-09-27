@@ -38,7 +38,7 @@ static const std::vector<struct JsEnumInt> g_eventType = {
     { "NORMAL", EventType::Normal },
 };
 
-static const std::vector<struct JsEnumInt> g_recurrenceType = {
+static const std::vector<struct JsEnumInt> g_recurrenceFrequency = {
     { "YEARLY", RecurrenceType::YEARLY },
     { "MONTHLY", RecurrenceType::MONTHLY },
     { "WEEKLY", RecurrenceType::WEEKLY },
@@ -48,6 +48,7 @@ static const std::vector<struct JsEnumInt> g_recurrenceType = {
 static const std::vector<struct JsEnumString> g_calendarTypeKey = {
     { "LOCAL", "local" },
     { "EMAIL", "email" },
+    { "BIRTHDAY", "birthday" },
     { "CALDAV", "caldav" },
     { "SUBSCRIBED", "subscribed" },
 };
@@ -66,7 +67,7 @@ static const std::vector<struct JsEnumString> g_serviceType = {
 
 static const std::map<std::string_view, const std::vector<struct JsEnumInt>&> g_intEnumClassMap = {
     { "EventType", g_eventType},
-    { "RecurrenceType", g_recurrenceType},
+    { "RecurrenceFrequency", g_recurrenceFrequency},
 };
 
 static const std::map<std::string_view, const std::vector<struct JsEnumString>&> g_stringEnumClassMap = {
@@ -79,7 +80,7 @@ napi_value CalendarEnumNapi::JsEnumIntInit(napi_env env, napi_value exports)
     for (const auto &enumClass : g_intEnumClassMap) {
         auto &enumClassName = enumClass.first;
         auto &enumItemVec = enumClass.second;
-        int32_t vecSize = enumItemVec.size();
+        int32_t vecSize = static_cast<int32_t>(enumItemVec.size());
         std::vector<napi_value> value;
         value.resize(vecSize);
         for (int32_t index = 0; index < vecSize; ++index) {
@@ -115,7 +116,7 @@ napi_value CalendarEnumNapi::JsEnumStringInit(napi_env env, napi_value exports)
     for (auto it = g_stringEnumClassMap.begin(); it != g_stringEnumClassMap.end(); it++) {
         auto &enumClassName = it->first;
         auto &enumItemVec = it->second;
-        int32_t vecSize = enumItemVec.size();
+        int32_t vecSize = static_cast<int32_t>(enumItemVec.size());
         std::vector<napi_value> value;
         value.resize(vecSize);
         for (int32_t index = 0; index < vecSize; ++index) {

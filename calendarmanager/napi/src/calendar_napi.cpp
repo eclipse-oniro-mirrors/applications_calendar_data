@@ -38,7 +38,6 @@ napi_value CalendarNapi::Constructor(napi_env env)
         DECLARE_NAPI_FUNCTION("getConfig", GetConfig),
         DECLARE_NAPI_FUNCTION("setConfig", SetConfig),
         DECLARE_NAPI_FUNCTION("getAccount", GetAccount),
-        DECLARE_NAPI_GETTER("id", GetId)
     };
     size_t count = sizeof(properties) / sizeof(properties[0]);
     return NapiUtil::DefineClass(env, "Calendar", properties, count, CalendarNapi::New);
@@ -87,20 +86,6 @@ void CalendarNapi::SetNative(std::shared_ptr<Native::Calendar>& calendar)
 std::shared_ptr<Native::Calendar>& CalendarNapi::GetNative()
 {
     return calendar_;
-}
-
-napi_value CalendarNapi::GetId(napi_env env, napi_callback_info info)
-{
-    LOG_INFO("GetId");
-    napi_value thisVar = nullptr;
-    NAPI_CALL(env, napi_get_cb_info(env, info, nullptr, nullptr, &thisVar, nullptr));
-
-    CalendarNapi* object = nullptr;
-    NAPI_CALL(env, napi_unwrap(env, thisVar, reinterpret_cast<void**>(&object)));
-    auto id = object->GetNative()->GetId();
-    napi_value result;
-    NapiUtil::SetValue(env, id, result);
-    return result;
 }
 
 napi_value CalendarNapi::AddEvent(napi_env env, napi_callback_info info)
@@ -161,11 +146,7 @@ napi_value CalendarNapi::AddEvents(napi_env env, napi_callback_info info)
         ctxt->status = (ctxt->count > 0) ? napi_ok : napi_generic_failure;
         CHECK_STATUS_RETURN_VOID(ctxt, "AddEvent failed!");
     };
-    auto output = [env, ctxt](napi_value& result) {
-        ctxt->status = NapiUtil::SetValue(ctxt->env, ctxt->count, result);
-        CHECK_STATUS_RETURN_VOID(ctxt, "output failed");
-    };
-    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute, output);
+    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute);
 }
 
 napi_value CalendarNapi::DeleteEvent(napi_env env, napi_callback_info info)
@@ -190,11 +171,7 @@ napi_value CalendarNapi::DeleteEvent(napi_env env, napi_callback_info info)
         CHECK_RETURN_VOID(nativeCalendar != nullptr, "nativeCalendar nullptr");
         ctxt->result = nativeCalendar->DeleteEvent(ctxt->eventId);
     };
-    auto output = [env, ctxt](napi_value& result) {
-        ctxt->status = NapiUtil::SetValue(ctxt->env, ctxt->result, result);
-        CHECK_STATUS_RETURN_VOID(ctxt, "output failed");
-    };
-    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute, output);
+    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute);
 }
 
 napi_value CalendarNapi::DeleteEvents(napi_env env, napi_callback_info info)
@@ -219,11 +196,7 @@ napi_value CalendarNapi::DeleteEvents(napi_env env, napi_callback_info info)
         CHECK_RETURN_VOID(nativeCalendar != nullptr, "nativeCalendar nullptr");
         ctxt->result = nativeCalendar->DeleteEvents(ctxt->ids);
     };
-    auto output = [env, ctxt](napi_value& result) {
-        ctxt->status = NapiUtil::SetValue(ctxt->env, ctxt->result, result);
-        CHECK_STATUS_RETURN_VOID(ctxt, "output failed");
-    };
-    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute, output);
+    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute);
 }
 
 napi_value CalendarNapi::UpdateEvent(napi_env env, napi_callback_info info)
@@ -248,11 +221,7 @@ napi_value CalendarNapi::UpdateEvent(napi_env env, napi_callback_info info)
         CHECK_RETURN_VOID(nativeCalendar != nullptr, "nativeCalendar nullptr");
         ctxt->result = nativeCalendar->UpdateEvent(ctxt->event);
     };
-    auto output = [env, ctxt](napi_value& result) {
-        ctxt->status = NapiUtil::SetValue(ctxt->env, ctxt->result, result);
-        CHECK_STATUS_RETURN_VOID(ctxt, "output failed");
-    };
-    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute, output);
+    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute);
 }
 
 napi_value CalendarNapi::UpdateEvents(napi_env env, napi_callback_info info)
@@ -278,11 +247,7 @@ napi_value CalendarNapi::UpdateEvents(napi_env env, napi_callback_info info)
         CHECK_RETURN_VOID(nativeCalendar != nullptr, "nativeCalendar nullptr");
         ctxt->result = nativeCalendar->UpdateEvents(ctxt->events);
     };
-    auto output = [env, ctxt](napi_value& result) {
-        ctxt->status = NapiUtil::SetValue(ctxt->env, ctxt->result, result);
-        CHECK_STATUS_RETURN_VOID(ctxt, "output failed");
-    };
-    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute, output);
+    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute);
 }
 
 napi_value CalendarNapi::GetEvents(napi_env env, napi_callback_info info)
@@ -369,7 +334,27 @@ napi_value CalendarNapi::GetConfig(napi_env env, napi_callback_info info)
 napi_value CalendarNapi::SetConfig(napi_env env, napi_callback_info info)
 {
     LOG_INFO("SetConfig");
-    return napi_value();
+    struct SetConfigContext : public ContextBase {
+        int result;
+        CalendarConfig config;
+        CalendarNapi *calendar;
+    };
+    auto ctxt = std::make_shared<SetConfigContext>();
+    auto input = [env, ctxt](size_t argc, napi_value* argv) {
+        // required atleast 1 arguments :: <CalendarConfig>
+        CHECK_ARGS_RETURN_VOID(ctxt, argc == 1, "invalid arguments!");
+        NapiUtil::GetValue(env, argv[0], ctxt->config);
+        CHECK_STATUS_RETURN_VOID(ctxt, "invalid arg[0], i.e. invalid config!");
+    };
+    ctxt->GetCbInfo(env, info, input);
+    auto execute = [ctxt]() {
+        auto calendar = reinterpret_cast<CalendarNapi*>(ctxt->native);
+        CHECK_RETURN_VOID(calendar != nullptr, "CalendarNapi nullptr");
+        auto nativeCalendar = calendar->GetNative();
+        CHECK_RETURN_VOID(nativeCalendar != nullptr, "nativeCalendar nullptr");
+        ctxt->result = nativeCalendar->SetConfig(ctxt->config);
+    };
+    return NapiQueue::AsyncWork(env, ctxt, std::string(__FUNCTION__), execute);
 }
 
 napi_value CalendarNapi::GetAccount(napi_env env, napi_callback_info info)
