@@ -39,10 +39,7 @@
                 "service_group": [
                     "//applications/standard/calendardata/calendarmanager:calendarmanager"
                 ]
-            },
-            "test": [
-                "//applications/standard/calendardata/calendarmanager/test:unittest"
-            ]
+            }
         }
     }
 }
