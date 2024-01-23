@@ -16,6 +16,7 @@
 #include "napi_util.h"
 #include <endian.h>
 #include <securec.h>
+#include <sstream>
 #include "calendar_log.h"
 #include "napi_queue.h"
 #include "native_util.h"
@@ -116,10 +117,10 @@ napi_status GetValue(napi_env env, napi_value in, std::string& out)
         return status;
     }
     LOG_DEBUG("napi_value -> std::string get length %{public}d", (int)maxLen);
-    char* buf = new (std::nothrow) char[maxLen + STR_TAIL_LENGTH];
+    char* buf = new (std::nothrow) char[STR_TAIL_LENGTH + maxLen];
     if (buf != nullptr) {
         size_t len = 0;
-        status = napi_get_value_string_utf8(env, in, buf, maxLen + STR_TAIL_LENGTH, &len);
+        status = napi_get_value_string_utf8(env, in, buf, STR_TAIL_LENGTH + maxLen, &len);
         if (status == napi_ok) {
             buf[len] = 0;
             out = std::string(buf);
@@ -145,7 +146,7 @@ napi_status GetValue(napi_env env, napi_value in, std::vector<std::string>& out)
 
 napi_status SetValue(napi_env env, const std::vector<std::string>& in, napi_value& out)
 {
-    LOG_DEBUG("napi_value <- std::vector<std::string>");
+    LOG_DEBUG("std::vector<std::string> -> napi_value");
     napi_status status = napi_create_array_with_length(env, in.size(), &out);
     CHECK_RETURN(status == napi_ok, "create array failed!", status);
     int index = 0;
@@ -304,8 +305,8 @@ napi_status GetValue(napi_env env, napi_value in, CalendarConfig& out)
     napi_status status = napi_has_named_property(env, in, "color", &result);
     if (status == napi_ok && !result) {
         const int64_t defaultColor = 0xFF0A59F7;
-        LOG_DEBUG("napi_value color is null, use default color: %{public}lld", (long long int)defaultColor);
-        out.color = defaultColor;
+        LOG_DEBUG("napi_value color is null, use default color: 0xFF0A59F7");
+        out.color.emplace<1>(defaultColor);
         return napi_ok;
     }
     napi_value value = NULL;
@@ -327,8 +328,8 @@ napi_status GetValue(napi_env env, napi_value in, CalendarConfig& out)
     int64_t colorValue;
     napi_status statusToGetInt64 = napi_get_value_int64(env, value, &colorValue);
     if (statusToGetInt64 == napi_ok) {
-        out.color = colorValue;
-        LOG_DEBUG("color: %{public}s", std::to_string(out.color.value()).c_str());
+        out.color.emplace<1>(colorValue);
+        LOG_DEBUG("color: %{public}s", std::to_string(std::get<1>(out.color)).c_str());
     } else {
         LOG_DEBUG("color number -> int_64 err");
     }
@@ -341,15 +342,27 @@ napi_status SetValue(napi_env env, const CalendarConfig& in, napi_value& out)
     napi_status status = napi_create_object(env, &out);
     CHECK_RETURN((status == napi_ok), "invalid entry object", status);
 
-    if (in.enableReminder) {
+    if (in.enableReminder.has_value()) {
+        LOG_DEBUG("config.enableReminder: %{public}d", in.enableReminder.value_or(-1));
         napi_value enableRemindValue = nullptr;
         status = SetValue(env, in.enableReminder.value(), enableRemindValue);
         CHECK_RETURN((status == napi_ok), "invalid entry enableReminder", status);
         napi_set_named_property(env, out, "enableReminder", enableRemindValue);
     }
-    if (in.color) {
+    if (std::get_if<1>(&in.color)) {
         napi_value colorValue = nullptr;
-        status = SetValue(env, in.color.value(), colorValue);
+        string color;
+        std::stringstream ss;
+        ss << std::hex << std::uppercase << std::get<1>(in.color);
+        ss >> color;
+        const int rgbLen = 5;
+        const int argbLen = 7;
+        if (color.size() == rgbLen || color.size() == argbLen) {
+            color = '0' + color;
+        }
+        color = '#' + color;
+        LOG_DEBUG("config.color: %{public}s", color.c_str());
+        status = SetValue(env, color, colorValue);
         CHECK_RETURN((status == napi_ok), "invalid entry color", status);
         napi_set_named_property(env, out, "color", colorValue);
     }
@@ -528,7 +541,6 @@ napi_status GetValue(napi_env env, napi_value in, Event& out)
     GetNamedPropertyOptional(env, in, "recurrenceRule", out.recurrenceRule);
     GetNamedPropertyOptional(env, in, "description", out.description);
     GetNamedPropertyOptional(env, in, "service", out.service);
-    Native::DumpEvent(out);
     return status;
 }
 
@@ -632,8 +644,8 @@ napi_ref NewWithRef(napi_env env, size_t argc, napi_value* argv, void** out, nap
 
     napi_ref ref = nullptr;
     status = napi_create_reference(env, object, 1, &ref);
-    CHECK_RETURN(status == napi_ok, "napi_create_referenc!e failed", nullptr);
-    CHECK_RETURN(ref != nullptr, "napi_create_referenc!e failed", nullptr);
+    CHECK_RETURN(status == napi_ok, "napi_create_reference failed!", nullptr);
+    CHECK_RETURN(ref != nullptr, "napi_create_reference failed!", nullptr);
     return ref;
 }
 
@@ -657,7 +669,7 @@ napi_status Unwrap(napi_env env, napi_value in, void** out, napi_value construct
 bool Equals(napi_env env, napi_value value, napi_ref copy)
 {
     if (copy == nullptr) {
-        return (value == nullptr);
+        return value == nullptr? true : false;
     }
 
     napi_value copyValue = nullptr;
@@ -667,5 +679,4 @@ bool Equals(napi_env env, napi_value value, napi_ref copy)
     napi_strict_equals(env, value, copyValue, &isEquals);
     return isEquals;
 }
-
-} // namespace OHOS::DistributedData
+} // namespace OHOS::CalendarApi::NapiUtil

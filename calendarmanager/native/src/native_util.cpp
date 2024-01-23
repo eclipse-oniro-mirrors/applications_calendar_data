@@ -107,14 +107,15 @@ DataShare::DataShareValuesBucket BuildValueEvent(const Event &event, int calenda
     
     LOG_DEBUG("description %{public}s", event.description.value_or("").c_str());
 
-    valuesBucket.Put("description", event.description.value_or(""));
-    if (event.timeZone) {
+    if (event.description.has_value()) {
+        valuesBucket.Put("description", event.description.value());
+    }
+    if (event.timeZone.has_value()) {
         valuesBucket.Put("eventTimezone", event.timeZone.value());
     }
-    if (event.isAllDay) {
-        valuesBucket.Put("allDay", event.isAllDay.value() ? 1 : 0);
+    if (event.isAllDay.has_value()) {
+        valuesBucket.Put("allDay", event.isAllDay.value());
     }
-    valuesBucket.Put("allDay", event.isAllDay ? (event.isAllDay.value() ? 1 : 0) : 0);
     return valuesBucket;
 }
 
@@ -252,7 +253,13 @@ std::optional<EventService> ResultSetToEventService(DataShareResultSetPtr &resul
     if (ret != DataShare::E_OK) {
         return std::nullopt;
     }
-    out.type = value;
+    const std::set<std::string> serviceType = {"Meeting", "Watching", "Repayment", "Live", "Shopping",
+                                               "Trip", "Class", "SportsEvents", "SportsExercise"};
+    if (serviceType.count(value)) {
+        out.type = value;
+    } else {
+        return std::nullopt;
+    }
     ret = GetValue(resultSet, "service_cp_bz_uri", value);
     if (ret != DataShare::E_OK) {
         return std::nullopt;
@@ -265,26 +272,46 @@ std::optional<EventService> ResultSetToEventService(DataShareResultSetPtr &resul
     return std::make_optional<EventService>(out);
 }
 
-void ResultSetToEvent(Event &event, DataShareResultSetPtr &resultSet)
+void ResultSetToEvent(Event &event, DataShareResultSetPtr &resultSet, const std::set<std::string>& columns)
 {
     GetValueOptional(resultSet, "_id", event.id);
-    int type = 0;
-    GetValue(resultSet, "event_calendar_type", type);
-    event.type = static_cast<EventType>(type);
-    GetValueOptional(resultSet, "title", event.title);
-    GetValue(resultSet, "dtstart", event.startTime);
-    GetValue(resultSet, "dtend", event.endTime);
-    int isAllDay = 0;
-    GetValue(resultSet, "allDay", isAllDay);
-    event.isAllDay = static_cast<bool>(isAllDay);
-    GetValueOptional(resultSet, "description", event.description);
-    GetValueOptional(resultSet, "eventTimezone", event.timeZone);
-    event.location = ResultSetToLocation(resultSet);
-    event.service = ResultSetToEventService(resultSet);
+    if (columns.count("type")) {
+        int type = 0;
+        GetValue(resultSet, "event_calendar_type", type);
+        event.type = static_cast<EventType>(type);
+    }
+    if (columns.count("title")) {
+        GetValueOptional(resultSet, "title", event.title);
+    }
+    if (columns.count("startTime")) {
+        LOG_DEBUG("TLQ get startTime");
+        GetValue(resultSet, "dtstart", event.startTime);
+    }
+    if (columns.count("endTime")) {
+        LOG_DEBUG("TLQ get endTime");
+        GetValue(resultSet, "dtend", event.endTime);
+    }
+    if (columns.count("isAllDay")) {
+        int isAllDay = 0;
+        GetValue(resultSet, "allDay", isAllDay);
+        event.isAllDay = static_cast<bool>(isAllDay);
+    }
+    if (columns.count("description")) {
+        GetValueOptional(resultSet, "description", event.description);
+    }
+    if (columns.count("timeZone")) {
+        GetValueOptional(resultSet, "eventTimezone", event.timeZone);
+    }
+    if (columns.count("location")) {
+        event.location = ResultSetToLocation(resultSet);
+    }
+    if (columns.count("service")) {
+        event.service = ResultSetToEventService(resultSet);
+    }
 }
 
 int ResultSetToEvents(std::vector<Event> &events, DataShareResultSetPtr &resultSet,
-    const std::vector<std::string>& columns)
+    const std::set<std::string>& columns)
 {
     int rowCount = 0;
     resultSet->GetRowCount(rowCount);
@@ -299,7 +326,7 @@ int ResultSetToEvents(std::vector<Event> &events, DataShareResultSetPtr &resultS
     }
     do {
         Event event;
-        ResultSetToEvent(event, resultSet);
+        ResultSetToEvent(event, resultSet, columns);
         events.emplace_back(event);
     } while (resultSet->GoToNextRow() == DataShare::E_OK);
     return 0;
@@ -362,7 +389,7 @@ bool IsValidHexString(const std::string& colorStr)
     return true;
 }
 
-bool ColorParse(const std::string& colorStr, optional<int64_t>& colorValue)
+bool ColorParse(const std::string& colorStr, variant<string, int64_t>& colorValue)
 {
     if (colorStr.empty()) {
         LOG_ERROR("color string is empty");
@@ -388,12 +415,53 @@ bool ColorParse(const std::string& colorStr, optional<int64_t>& colorValue)
     }
 
     LOG_DEBUG("color string size is 7 or 9");
-    colorValue = std::stoll(colorStrSub, NULL, 16); // 16 is convert hex string to number
-    if (colorValue.has_value()) {
-        LOG_DEBUG("colorStrSub -> colorValue colorValue:%{public}s", std::to_string(colorValue.value()).c_str());
+    colorValue.emplace<1>(std::stoll(colorStrSub, NULL, 16)); // 16 is convert hex string to number
+    if (std::get_if<1>(&colorValue)) {
+        LOG_DEBUG("colorStrSub -> colorValue colorValue:%{public}s", std::to_string(std::get<1>(colorValue)).c_str());
         return true;
     }
     LOG_DEBUG("color is null");
     return false;
+}
+
+void setField(const std::vector<string>& eventKey, std::vector<string>& queryField, std::set<string>& resultSetField)
+{
+    const std::map<string, string> eventField = { { "id", "_id" },
+                                                  { "type", "event_calendar_type" },
+                                                  { "title", "title" },
+                                                  { "startTime", "dtstart" },
+                                                  { "endTime", "dtend" },
+                                                  { "isAllDay", "allDay" },
+                                                  { "timeZone", "eventTimezone" },
+                                                  { "description", "description" } };
+    for (const auto& field : eventKey) {
+        if (field == "location") {
+            queryField.emplace_back("eventLocation");
+            queryField.emplace_back("location_longitude");
+            queryField.emplace_back("location_latitude");
+            resultSetField.insert(field);
+            continue;
+        }
+        if (field == "service") {
+            queryField.emplace_back("service_type");
+            queryField.emplace_back("service_cp_bz_uri");
+            queryField.emplace_back("service_description");
+            resultSetField.insert(field);
+            continue;
+        }
+        if (field == "attendee") {
+            resultSetField.insert(field);
+            continue;
+        }
+        if (field == "reminderTime") {
+            resultSetField.insert(field);
+            continue;
+        }
+        if (field == "id") {
+            continue;
+        }
+        queryField.emplace_back(eventField.at(field));
+        resultSetField.insert(field);
+    }
 }
 }
