@@ -76,8 +76,10 @@ int Calendar::AddEvent(const Event& event)
         auto valueAttendee = BuildAttendeeValue(attendee, eventId);
         valueAttendees.emplace_back(valueAttendee);
     }
-    auto count = DataShareHelperManager::GetInstance().BatchInsert(*(m_attendeeUri.get()), valueAttendees);
-    LOG_INFO("batchInsert attendees count %{public}d", count);
+    if (valueAttendees.size() > 0) {
+        auto count = DataShareHelperManager::GetInstance().BatchInsert(*(m_attendeeUri.get()), valueAttendees);
+        LOG_INFO("batchInsert attendees count %{public}d", count);
+    }
     
     // insert reminder
     if (event.reminderTime.has_value()) {
@@ -184,8 +186,10 @@ bool Calendar::UpdateEvent(const Event& event)
         auto valueAttendee = BuildAttendeeValue(attendee, eventId);
         valueAttendees.emplace_back(valueAttendee);
     }
-    auto count = DataShareHelperManager::GetInstance().BatchInsert(*(m_attendeeUri.get()), valueAttendees);
-    LOG_INFO("batchInsert attendees count %{public}d", count);
+    if (valueAttendees.size() > 0) {
+        auto count = DataShareHelperManager::GetInstance().BatchInsert(*(m_attendeeUri.get()), valueAttendees);
+        LOG_INFO("batchInsert attendees count %{public}d", count);
+    }
     
     {
         // delete reminder
@@ -217,7 +221,7 @@ std::vector<Attendee> Calendar::GetAttendeesByEventId(int id)
 {
     DataShare::DataSharePredicates predicates;
     predicates.EqualTo("event_id", id);
-    std::vector<std::string> columns = {"attendeeName", "attendeeEmail"};
+    std::vector<std::string> columns = {"attendeeName", "attendeeEmail", "attendeeRelationship"};
     DataShare::DatashareBusinessError error;
     auto result = DataShareHelperManager::GetInstance().Query(*(m_attendeeUri.get()), predicates, columns, &error);
     std::vector<Attendee> attendees;
@@ -263,7 +267,7 @@ std::vector<Event> Calendar::GetEvents(std::shared_ptr<EventFilter> filter, cons
         setField(eventKey, queryField, resultSetField);
     } else {
         resultSetField = {"type", "title", "startTime", "endTime", "isAllDay", "description",
-                          "timeZone", "location", "service", "attendee", "reminderTime"};
+        "timeZone", "location", "service", "attendee", "reminderTime"};
     }
     DataShare::DatashareBusinessError error;
     auto result = DataShareHelperManager::GetInstance().Query(*(m_eventUri.get()),
