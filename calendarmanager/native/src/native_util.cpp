@@ -657,6 +657,7 @@ std::optional<RecurrenceRule> ResultSetToRecurrenceRule(DataShareResultSetPtr &r
 
     return std::make_optional<RecurrenceRule>(out);
 }
+
 void SetRRuleValue(const std::map<std::string, std::string> &ruleMap, RecurrenceRule &out)
 {
     std::map<std::string, std::string>::const_iterator iter;
