@@ -259,4 +259,5 @@ HWTEST_F(EventRecurrenceRuleTest, GetRuleWithDayOfWeekMonthYearlyList, testing::
 
     EXPECT_EQ(value, rrule);
 }
+
 }
