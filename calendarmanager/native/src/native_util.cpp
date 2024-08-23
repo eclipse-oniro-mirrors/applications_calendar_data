@@ -949,7 +949,7 @@ void SetFieldInfo(const std::vector<string>& eventKey, std::vector<string>& quer
     }
 }
 
-void setField(const std::vector<string>& eventKey, std::vector<string>& queryField, std::set<string>& resultSetField)
+void SetField(const std::vector<string>& eventKey, std::vector<string>& queryField, std::set<string>& resultSetField)
 {
     const std::map<string, string> eventField = { { "id", "_id" },
                                                   { "type", "important_event_type" },
