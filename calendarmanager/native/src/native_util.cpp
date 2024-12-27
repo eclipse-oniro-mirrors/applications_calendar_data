@@ -397,6 +397,12 @@ DataShare::DataShareValuesBucket BuildAttendeeValue(const Attendee &attendee, in
     if (attendee.role.has_value()) {
         valuesBucket.Put("attendeeRelationship", attendee.role.value());
     }
+    if (attendee.status.has_value()) {
+        valuesBucket.Put("attendeeStatus", attendee.status.value());
+    }
+    if (attendee.type.has_value()) {
+        valuesBucket.Put("attendeeType", attendee.type.value());
+    }
     
     return valuesBucket;
 }
@@ -800,6 +806,36 @@ int ResultSetToEvents(std::vector<Event> &events, DataShareResultSetPtr &resultS
     return 0;
 }
 
+void ResultSetToAttendeeStatus(Attendee &attendee, DataShareResultSetPtr &resultSet)
+{
+    int statusValue = 0;
+    GetValue(resultSet, "attendeeStatus", statusValue);
+    if (statusValue == UNKNOWN) {
+        attendee.status = std::make_optional<AttendeeStatus>(UNKNOWN);
+    } else if (statusValue == TENTATIVE) {
+        attendee.status = std::make_optional<AttendeeStatus>(TENTATIVE);
+    } else if (statusValue == ACCEPTED) {
+        attendee.status = std::make_optional<AttendeeStatus>(ACCEPTED);
+    } else if (statusValue == DECLINED) {
+        attendee.status = std::make_optional<AttendeeStatus>(DECLINED);
+    } else {
+        attendee.status = std::make_optional<AttendeeStatus>(UNRESPONSIVE);
+    }
+}
+
+void ResultSetToAttendeeType(Attendee &attendee, DataShareResultSetPtr &resultSet)
+{
+    int typeValue = 0;
+    GetValue(resultSet, "attendeeType", typeValue);
+    if (typeValue == REQUIRED) {
+        attendee.type = std::make_optional<AttendeeType>(REQUIRED);
+    } else if (typeValue == OPTIONAL) {
+        attendee.type = std::make_optional<AttendeeType>(OPTIONAL);
+    } else {
+        attendee.type = std::make_optional<AttendeeType>(RESOURCE);
+    }
+}
+
 int ResultSetToAttendees(std::vector<Attendee> &attendees, DataShareResultSetPtr &resultSet)
 {
     int rowCount = 0;
@@ -824,7 +860,8 @@ int ResultSetToAttendees(std::vector<Attendee> &attendees, DataShareResultSetPtr
         } else if (roleValue == ORGANIZER) {
             attendee.role = std::make_optional<RoleType>(ORGANIZER);
         }
-        
+        ResultSetToAttendeeStatus(attendee, resultSet);
+        ResultSetToAttendeeType(attendee, resultSet);
         attendees.emplace_back(attendee);
     } while (resultSet->GoToNextRow() == DataShare::E_OK);
     return 0;
