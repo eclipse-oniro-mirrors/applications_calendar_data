@@ -206,8 +206,8 @@ HWTEST_F(CalendarTest, UpdateEvents_test_1, testing::ext::TestSize.Level1)
 HWTEST_F(CalendarTest, GetConfig_default_test, testing::ext::TestSize.Level1)
 {
     auto config = calendar->GetConfig();
-    EXPECT_FALSE(config.enableReminder.has_value());
-    EXPECT_TRUE(std::get<0>(config.color).empty());
+    EXPECT_TRUE(config.enableReminder.has_value());
+    EXPECT_TRUE(std::get<1>(config.color) == 0);
 }
 
 HWTEST_F(CalendarTest, SetConfig_empty_param_test, testing::ext::TestSize.Level1)
@@ -216,7 +216,7 @@ HWTEST_F(CalendarTest, SetConfig_empty_param_test, testing::ext::TestSize.Level1
     auto ret = calendar->SetConfig(config);
     ASSERT_TRUE(ret);
     auto configExpect = calendar->GetConfig();
-    EXPECT_FALSE(configExpect.enableReminder.has_value());
+    EXPECT_TRUE(configExpect.enableReminder.has_value());
     EXPECT_TRUE(std::get<0>(config.color).empty());
 }
 

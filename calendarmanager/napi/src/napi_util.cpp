@@ -357,6 +357,9 @@ napi_status SetValue(napi_env env, const CalendarConfig& in, napi_value& out)
         ss >> color;
         const int rgbLen = 5;
         const int argbLen = 7;
+        while (color.size() < rgbLen) {
+            color = '0' + color;
+        }
         if (color.size() == rgbLen || color.size() == argbLen) {
             color = '0' + color;
         }
@@ -446,21 +449,30 @@ napi_status SetValue(napi_env env, const RecurrenceRule& in, napi_value& out)
 }
 
 /* napi_value <-> Attendee */
-napi_status GetValue(napi_env env, napi_value in, Attendee& out)
+napi_status GetValue(napi_env env, napi_value in, Attendee &out)
 {
     LOG_DEBUG("Attendee -> napi_value ");
     NapiUtil::GetNamedProperty(env, in, "name", out.name);
     NapiUtil::GetNamedProperty(env, in, "email", out.email);
-    optional<std::string> value;
-    NapiUtil::GetNamedPropertyOptional(env, in, "role", value);
-    if (!value.has_value()) {
-        return napi_ok;
+    optional<std::string> role = std::nullopt;
+    optional<int> status = std::nullopt;
+    optional<int> type = std::nullopt;
+    NapiUtil::GetNamedPropertyOptional(env, in, "role", role);
+    if (role.has_value()) {
+        if (role == "organizer") {
+            out.role = ORGANIZER;
+        } else {
+            out.role = PARTICIPANT;
+        }
     }
-   
-    if (value == "organizer") {
-        out.role = ORGANIZER;
-    } else {
-        out.role = PARTICIPANT;
+    NapiUtil::GetNamedPropertyOptional(env, in, "status", status);
+    if (status.has_value()) {
+        out.status = static_cast<AttendeeStatus>(status.value());
+        LOG_INFO("status.value() %{public}d", status.value());
+    }
+    NapiUtil::GetNamedPropertyOptional(env, in, "type", type);
+    if (type.has_value()) {
+        out.type = static_cast<AttendeeType>(type.value());
     }
     return napi_ok;
 }
@@ -479,19 +491,21 @@ napi_status SetValue(napi_env env, const Attendee& in, napi_value& out)
     status = SetValue(env, in.email, emailValue);
     CHECK_RETURN((status == napi_ok), "invalid entry type", status);
     napi_set_named_property(env, out, "email", emailValue);
-    if (!in.role.has_value()) {
-        return napi_ok;
+    optional<std::string> value = std::nullopt;
+    if (in.role.has_value()) {
+        if (in.role == ORGANIZER) {
+            value = "organizer";
+        } else {
+            value = "participant";
+        }
     }
-    std::string value;
-    if (in.role == PARTICIPANT) {
-        value = "organizer";
-    } else {
-        value = "participant";
+    if (value.has_value()) {
+        SetNamedPropertyOptional(env, "role", value, out);
     }
-    napi_value roleValue = nullptr;
-    status = SetValue(env, value, roleValue);
-    CHECK_RETURN((status == napi_ok), "invalid role", status);
-    napi_set_named_property(env, out, "role", roleValue);
+    SetNamedPropertyOptional(env, "status", in.status, out);
+    CHECK_RETURN((status == napi_ok), "invalid status", status);
+    SetNamedPropertyOptional(env, "type", in.type, out);
+    CHECK_RETURN((status == napi_ok), "invalid type", status);
     return napi_ok;
 }
 
