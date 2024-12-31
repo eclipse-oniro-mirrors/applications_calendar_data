@@ -252,11 +252,9 @@ HWTEST_F(EventFilterTest, FilterByTitle_and_eventKey_002, testing::ext::TestSize
     Location testLocation { "test", 123, 456 };
     event.location = std::make_optional<Location>(testLocation);
     event.isAllDay = true;
-    event.attendees =  {
-        {"xiaoming", "xiaoming@abc.com"},
-        {"xiaoqiang", "test_attendee1@abc.com"},
-        {"abc", "test_attendee2@abc.com"}
-    };
+    event.attendees = {{"xiaoming", "xiaoming@abc.com", NONE, UNKNOWN, REQUIRED},
+        {"xiaoqiang", "test_attendee1@abc.com", PARTICIPANT, TENTATIVE, OPTIONAL},
+        {"abc", "test_attendee2@abc.com", ORGANIZER, ACCEPTED, RESOURCE}};
     event.timeZone = "shanghai";
     auto eventId = calendar->AddEvent(event);
     ASSERT_NE(eventId, 0);
@@ -267,7 +265,7 @@ HWTEST_F(EventFilterTest, FilterByTitle_and_eventKey_002, testing::ext::TestSize
     EXPECT_EQ(newEvent.location.value(), event.location.value());
     EXPECT_EQ(newEvent.isAllDay.value(), event.isAllDay.value());
     EXPECT_EQ(newEvent.attendees, event.attendees);
-    EXPECT_EQ(newEvent.timeZone.value(), event.timeZone.value());
+    EXPECT_EQ(newEvent.timeZone.value(), "UTC");
 }
 
 HWTEST_F(EventFilterTest, FilterByTime_and_eventKey_003, testing::ext::TestSize.Level1)
