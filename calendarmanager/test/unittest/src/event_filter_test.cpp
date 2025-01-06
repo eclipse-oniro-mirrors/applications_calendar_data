@@ -255,7 +255,7 @@ HWTEST_F(EventFilterTest, FilterByTitle_and_eventKey_002, testing::ext::TestSize
     event.attendees = {{"xiaoming", "xiaoming@abc.com", NONE, UNKNOWN, REQUIRED},
         {"xiaoqiang", "test_attendee1@abc.com", PARTICIPANT, TENTATIVE, OPTIONAL},
         {"abc", "test_attendee2@abc.com", ORGANIZER, ACCEPTED, RESOURCE}};
-    event.timeZone = "shanghai";
+    event.timeZone = "UTC";
     auto eventId = calendar->AddEvent(event);
     ASSERT_NE(eventId, 0);
     auto eventResult = calendar->GetEvents(FilterByTitle(title),
