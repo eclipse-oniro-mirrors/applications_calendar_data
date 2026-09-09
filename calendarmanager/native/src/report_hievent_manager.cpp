@@ -41,7 +41,7 @@ struct ApiCallRecord {
     bool success;
     int64_t costMs;
     int64_t timestamp;
-    };
+};
 
 struct ApiAggregatedStat {
     std::string apiName;
@@ -51,7 +51,7 @@ struct ApiAggregatedStat {
     int64_t maxCostMs = 0;
     int64_t minCostMs = INT64_MAX;
     int64_t batchStartTime = 0;
-    
+
     void Aggregate(const ApiCallRecord& record)
     {
         totalCalls++;
@@ -69,7 +69,7 @@ struct ApiAggregatedStat {
 };
 
 #ifdef DEVICE_USAGE_HIAPPEVENT_ENABLE
-class ReportHiEventManager::ReportHiEventManagerImpl 
+class ReportHiEventManager::ReportHiEventManagerImpl
     : public std::enable_shared_from_this<ReportHiEventManagerImpl> {
 public:
     ReportHiEventManagerImpl() = default;
@@ -256,7 +256,7 @@ private:
         event.AddParam("max_cost_time", stat.maxCostMs > 0 ? stat.maxCostMs : 0);
         event.AddParam("min_cost_time", stat.minCostMs < INT64_MAX ? stat.minCostMs : 0);
         event.AddParam("total_cost_time", stat.totalCostMs);
-                
+
         HiviewDFX::HiAppEvent::Write(event);
     }
 
