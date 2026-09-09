@@ -36,7 +36,7 @@ public:
 private:
     ReportHiEventManager();
     class ReportHiEventManagerImpl;
-    std::unique_ptr<ReportHiEventManagerImpl> m_impl;
+    std::shared_ptr<ReportHiEventManagerImpl> m_impl;
 };
 
 } // namespace OHOS::CalendarApi::Native
