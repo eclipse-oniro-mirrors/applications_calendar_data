@@ -41,7 +41,7 @@ struct ApiCallRecord {
     bool success;
     int64_t costMs;
     int64_t timestamp;
-};
+    };
 
 struct ApiAggregatedStat {
     std::string apiName;
@@ -51,7 +51,7 @@ struct ApiAggregatedStat {
     int64_t maxCostMs = 0;
     int64_t minCostMs = INT64_MAX;
     int64_t batchStartTime = 0;
-
+    
     void Aggregate(const ApiCallRecord& record)
     {
         totalCalls++;
@@ -69,7 +69,7 @@ struct ApiAggregatedStat {
 };
 
 #ifdef DEVICE_USAGE_HIAPPEVENT_ENABLE
-class ReportHiEventManager::ReportHiEventManagerImpl
+class ReportHiEventManager::ReportHiEventManagerImpl 
     : public std::enable_shared_from_this<ReportHiEventManagerImpl> {
 public:
     ReportHiEventManagerImpl() = default;
@@ -125,31 +125,33 @@ private:
 
     void EnsureReportingRunning()
     {
-        if (m_isWorkThreadRunning.load()) {
+        if (m_isWorkThreadRunning.load() || m_joining.load()) {
             return;
         }
         std::unique_lock<std::mutex> lock(m_threadControlMutex);
-        if (m_isWorkThreadRunning.load()) {
+        if (m_isWorkThreadRunning.load() || m_joining.load()) {
             return;
         }
 
         if (m_reportThread.joinable()) {
+            m_joining.store(true);
             m_stopReporting.store(true);
             m_reportCv.notify_one();
             lock.unlock();
             m_reportThread.join();
             lock.lock();
+            m_joining.store(false);
         }
 
         //start new thread
         m_stopReporting.store(false);
-        m_isWorkThreadRunning.store(true);
         auto weak_self = weak_from_this();
         m_reportThread = std::thread([weak_self]() {
         if (auto self = weak_self.lock()) {
             self->ReportingThreadFunc();
             }
         });
+        m_isWorkThreadRunning.store(true);
     }
 
     void CheckReportConditions()
@@ -254,7 +256,7 @@ private:
         event.AddParam("max_cost_time", stat.maxCostMs > 0 ? stat.maxCostMs : 0);
         event.AddParam("min_cost_time", stat.minCostMs < INT64_MAX ? stat.minCostMs : 0);
         event.AddParam("total_cost_time", stat.totalCostMs);
-        
+                
         HiviewDFX::HiAppEvent::Write(event);
     }
 
@@ -296,6 +298,7 @@ private:
     std::atomic<bool> m_isWorkThreadRunning{false};
     std::atomic<bool> m_stopReporting{false};
     std::atomic<bool> m_thresholdReached{false};
+    std::atomic<bool> m_joining{false};
     std::atomic<int64_t> m_lastApiCallTime{0};
 
     int64_t m_processorId{-1};
@@ -333,7 +336,7 @@ ReportHiEventManager& ReportHiEventManager::GetInstance()
 }
 
 ReportHiEventManager::ReportHiEventManager()
-    : m_impl(std::make_unique<ReportHiEventManagerImpl>())
+    : m_impl(std::make_shared<ReportHiEventManagerImpl>())
 {
 }
 
