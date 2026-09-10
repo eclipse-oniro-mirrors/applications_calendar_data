@@ -125,33 +125,31 @@ private:
 
     void EnsureReportingRunning()
     {
-        if (m_isWorkThreadRunning.load() || m_joining.load()) {
+        if (m_isWorkThreadRunning.load()) {
             return;
         }
         std::unique_lock<std::mutex> lock(m_threadControlMutex);
-        if (m_isWorkThreadRunning.load() || m_joining.load()) {
+        if (m_isWorkThreadRunning.load()) {
             return;
         }
 
         if (m_reportThread.joinable()) {
-            m_joining.store(true);
-            m_stopReporting.store(true);
-            m_reportCv.notify_one();
-            lock.unlock();
+            // 前提：m_isWorkThreadRunning == false 保证旧线程已退出 while 循环，
+            // 不在 wait_for 中，持锁 join 不会死锁。
+            // 若修改 ReportingThreadFunc 的退出逻辑，需重新评估此处。
             m_reportThread.join();
-            lock.lock();
-            m_joining.store(false);
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
         //start new thread
         m_stopReporting.store(false);
+        m_isWorkThreadRunning.store(true);
         auto weak_self = weak_from_this();
         m_reportThread = std::thread([weak_self]() {
         if (auto self = weak_self.lock()) {
             self->ReportingThreadFunc();
             }
         });
-        m_isWorkThreadRunning.store(true);
     }
 
     void CheckReportConditions()
