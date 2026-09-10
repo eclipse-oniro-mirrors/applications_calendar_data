@@ -250,7 +250,6 @@ private:
         event.AddParam("max_cost_time", stat.maxCostMs > 0 ? stat.maxCostMs : 0);
         event.AddParam("min_cost_time", stat.minCostMs < INT64_MAX ? stat.minCostMs : 0);
         event.AddParam("total_cost_time", stat.totalCostMs);
-
         HiviewDFX::HiAppEvent::Write(event);
     }
 
