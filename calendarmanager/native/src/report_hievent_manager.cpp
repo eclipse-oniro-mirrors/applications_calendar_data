@@ -134,11 +134,7 @@ private:
         }
 
         if (m_reportThread.joinable()) {
-            // 前提：m_isWorkThreadRunning == false 保证旧线程已退出 while 循环，
-            // 不在 wait_for 中，持锁 join 不会死锁。
-            // 若修改 ReportingThreadFunc 的退出逻辑，需重新评估此处。
             m_reportThread.join();
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
         //start new thread
@@ -296,7 +292,6 @@ private:
     std::atomic<bool> m_isWorkThreadRunning{false};
     std::atomic<bool> m_stopReporting{false};
     std::atomic<bool> m_thresholdReached{false};
-    std::atomic<bool> m_joining{false};
     std::atomic<int64_t> m_lastApiCallTime{0};
 
     int64_t m_processorId{-1};
