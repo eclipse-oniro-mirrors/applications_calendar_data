@@ -134,11 +134,7 @@ private:
         }
 
         if (m_reportThread.joinable()) {
-            m_stopReporting.store(true);
-            m_reportCv.notify_one();
-            lock.unlock();
             m_reportThread.join();
-            lock.lock();
         }
 
         //start new thread
@@ -254,7 +250,6 @@ private:
         event.AddParam("max_cost_time", stat.maxCostMs > 0 ? stat.maxCostMs : 0);
         event.AddParam("min_cost_time", stat.minCostMs < INT64_MAX ? stat.minCostMs : 0);
         event.AddParam("total_cost_time", stat.totalCostMs);
-        
         HiviewDFX::HiAppEvent::Write(event);
     }
 
@@ -333,7 +328,7 @@ ReportHiEventManager& ReportHiEventManager::GetInstance()
 }
 
 ReportHiEventManager::ReportHiEventManager()
-    : m_impl(std::make_unique<ReportHiEventManagerImpl>())
+    : m_impl(std::make_shared<ReportHiEventManagerImpl>())
 {
 }
 
