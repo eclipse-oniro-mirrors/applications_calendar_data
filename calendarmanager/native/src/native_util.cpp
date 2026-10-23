@@ -170,7 +170,22 @@ std::string GetUTCTimes(const std::vector<int64_t> &timeValues)
 std::string GetRule(const Event &event)
 {
     const time_t now = event.startTime / 1000;
-    const std::tm *time = std::localtime(&now);
+    std::tm timeBuffer = {0};
+    const std::tm *time = nullptr;
+    // 显式声明UTC时区时，startTime为UTC午夜，用UTC分解与展开侧UTC基准对齐
+    if (event.timeZone.has_value() && event.timeZone.value() == "UTC") {
+#ifdef WINDOWS_PLATFORM
+        if (gmtime_s(&timeBuffer, &now) == 0) {
+            time = &timeBuffer;
+        }
+#else
+        if (gmtime_r(&now, &timeBuffer) != nullptr) {
+            time = &timeBuffer;
+        }
+#endif
+    } else {
+        time = std::localtime(&now);
+    }
     std::string rrule;
     RecurrenceType recurrenceFrequency = event.recurrenceRule.value().recurrenceFrequency;
     if (recurrenceFrequency == DAILY) {
