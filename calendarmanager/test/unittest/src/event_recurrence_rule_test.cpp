@@ -335,6 +335,85 @@ HWTEST_F(EventRecurrenceRuleTest, TimeToUTCError, testing::ext::TestSize.Level1)
 
     EXPECT_EQ(timeValue, timeUTCValue);
 }
+
+HWTEST_F(EventRecurrenceRuleTest, GetRuleWithYearlyUTC, testing::ext::TestSize.Level1)
+{
+    Event event;
+    event.startTime = 1716163200000;  // UTC 2024-05-20 00:00:00
+    event.timeZone = std::make_optional<std::string>("UTC");
+    RecurrenceRule recurrenceRule;
+    recurrenceRule.recurrenceFrequency = YEARLY;
+    event.recurrenceRule = std::make_optional<RecurrenceRule>(recurrenceRule);
+    std::string rrule = "FREQ=YEARLY;WKST=SU;BYMONTHDAY=20;BYMONTH=5";
+
+    const auto value = GetRule(event);
+
+    EXPECT_EQ(value, rrule);
+}
+
+HWTEST_F(EventRecurrenceRuleTest, GetRuleWithMonthlyUTC, testing::ext::TestSize.Level1)
+{
+    Event event;
+    event.startTime = 1716163200000;  // UTC 2024-05-20 00:00:00
+    event.timeZone = std::make_optional<std::string>("UTC");
+    RecurrenceRule recurrenceRule;
+    recurrenceRule.recurrenceFrequency = MONTHLY;
+    event.recurrenceRule = std::make_optional<RecurrenceRule>(recurrenceRule);
+    std::string rrule = "FREQ=MONTHLY;WKST=SU;BYMONTHDAY=20";
+
+    const auto value = GetRule(event);
+
+    EXPECT_EQ(value, rrule);
+}
+
+HWTEST_F(EventRecurrenceRuleTest, GetRuleWithWeeklyUTC, testing::ext::TestSize.Level1)
+{
+    Event event;
+    event.startTime = 1716163200000;  // UTC 2024-05-20 00:00:00 (Monday)
+    event.timeZone = std::make_optional<std::string>("UTC");
+    RecurrenceRule recurrenceRule;
+    recurrenceRule.recurrenceFrequency = WEEKLY;
+    event.recurrenceRule = std::make_optional<RecurrenceRule>(recurrenceRule);
+    std::string rrule = "FREQ=WEEKLY;WKST=SU;BYDAY=MO";
+
+    const auto value = GetRule(event);
+
+    EXPECT_EQ(value, rrule);
+}
+
+HWTEST_F(EventRecurrenceRuleTest, GetRuleWithYearlyUTCNotAllDay, testing::ext::TestSize.Level1)
+{
+    Event event;
+    event.startTime = 1716195600000;  // UTC 2024-05-20 09:00:00
+    event.timeZone = std::make_optional<std::string>("UTC");
+    event.isAllDay = std::make_optional<bool>(false);
+    RecurrenceRule recurrenceRule;
+    recurrenceRule.recurrenceFrequency = YEARLY;
+    event.recurrenceRule = std::make_optional<RecurrenceRule>(recurrenceRule);
+    std::string rrule = "FREQ=YEARLY;WKST=SU;BYMONTHDAY=20;BYMONTH=5";
+
+    const auto value = GetRule(event);
+
+    EXPECT_EQ(value, rrule);
+}
+
+HWTEST_F(EventRecurrenceRuleTest, GetRuleWithDaysOfMonthYearlyUTC, testing::ext::TestSize.Level1)
+{
+    Event event;
+    event.startTime = 1716163200000;  // UTC 2024-05-20 00:00:00
+    event.timeZone = std::make_optional<std::string>("UTC");
+    RecurrenceRule recurrenceRule;
+    recurrenceRule.recurrenceFrequency = YEARLY;
+    recurrenceRule.daysOfMonth = {15};
+    recurrenceRule.monthsOfYear = {3};
+    event.recurrenceRule = std::make_optional<RecurrenceRule>(recurrenceRule);
+    std::string rrule = "FREQ=YEARLY;WKST=SU;BYMONTHDAY=15;BYMONTH=3";
+
+    const auto value = GetRule(event);
+
+    EXPECT_EQ(value, rrule);
+}
+
 HWTEST_F(EventRecurrenceRuleTest, GetRuleWithDay, testing::ext::TestSize.Level1)
 {
     const int64_t timeValue = 1713672150000;
