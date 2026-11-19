@@ -55,6 +55,7 @@ void InitEnv(void)
     vector<string> perms;
     perms.push_back("ohos.permission.READ_CALENDAR");
     perms.push_back("ohos.permission.WRITE_CALENDAR");
+    perms.push_back("ohos.permission.ACCESS_CALENDARDATA_FOR_BROKER");
     uint64_t tokenId = 0;
     SetAccessTokenPermission("calendar_manager_test", perms, tokenId);
     ASSERT_TRUE(tokenId != 0);
